@@ -1,6 +1,6 @@
-# Trabajos de Maria
+# Trabajos de fatima
 
-Aquí deben ir los scripts resueltos por Maria.
+Aquí deben ir los scripts resueltos por fatima.
 Archivos:
 - procedimientos.sql
 - funciones.sql
