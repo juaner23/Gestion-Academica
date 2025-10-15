@@ -1,0 +1,6 @@
+.vs/
+*.bak
+*.mdf
+*.ldf
+*.zip
+__pycache__/
