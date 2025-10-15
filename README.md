@@ -1,16 +1,16 @@
-# 🎓 Sistema de Gestión Académica
+#  Sistema de Gestión Académica
 
-## 📘 Descripción general
+##  Descripción general
 Este repositorio contiene el desarrollo colaborativo de una **base de datos para un sistema de gestión académica**, implementado en **SQL Server**.  
 El proyecto forma parte del trabajo práctico grupal, donde cada integrante desarrolla procedimientos almacenados, funciones, triggers y transacciones sobre una base común.
 
 ---
 
-## 🧱 Estructura del repositorio
+##  Estructura del repositorio
 
 ```
 Gestion-Academica/
-│
+│S
 ├── BD/
 │   ├── creacion.sql              → Script de creación de la base y sus tablas
 │   ├── insert.sql                → Script de inserción de datos iniciales
@@ -35,17 +35,11 @@ Gestion-Academica/
 
 ---
 
-## 👥 Integrantes del equipo
-| Nombre   | Rol principal |  
-|-----------|----------------|
-| **Juan**     | Coordinación general / Unificación final |
-| **Fátima**   | Procedimientos almacenados y funciones |
-| **Facundo**  | Triggers y transacciones |
-| **Tomás**    | Funciones y procedimientos de control |
+
 
 ---
 
-## ⚙️ Instrucciones para ejecutar la base
+##  Instrucciones para ejecutar la base
 
 1. Abrir **SQL Server Management Studio (SSMS)**.  
 2. Crear una base de datos vacía llamada `GestionAcademica`.  
@@ -57,7 +51,7 @@ Gestion-Academica/
 
 ---
 
-## 🧩 Flujo de trabajo colaborativo
+##  Flujo de trabajo colaborativo
 
 1. Cada integrante trabaja **solo dentro de su carpeta**:  
    ```
@@ -74,11 +68,11 @@ Gestion-Academica/
    git commit -m "Agrego procedimiento de matrícula (Juan)"
    git push origin main
    ```
-4. Al final del trabajo, Juan unificará los scripts en `/BD/final_*.sql` para la entrega.
+4. Al final del trabajo, Juanchi unifica los scripts en `/BD/final_*.sql` para la entrega.
 
 ---
 
-## 🧠 Buenas prácticas
+##  Buenas prácticas
 
 - Usar nombres descriptivos en procedimientos y funciones (`sp_InscribirAlumno`, `fn_PromedioAlumno`, etc.).
 - No ejecutar scripts de otros compañeros sin revisarlos.
@@ -87,10 +81,9 @@ Gestion-Academica/
 
 ---
 
-## ✅ Entrega final
+##  Entrega final
 El profesor podrá ejecutar directamente los archivos `final_*.sql` dentro de la carpeta **BD**,  
 que contienen la versión consolidada y funcional del proyecto.
 
 ---
 
-> 🗂️ **Repositorio mantenido por el grupo de trabajo de Gestión Académica (SQL Server) - 2025**

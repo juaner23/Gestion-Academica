@@ -1,3 +1,3 @@
 -- Archivo: triggers.sql
--- Autor: Pablo
+-- Autor: Tomas
 

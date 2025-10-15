@@ -1,4 +1,4 @@
-# Trabajos de Sofia
+# Trabajos de Facundo
 
 Aquí deben ir los scripts resueltos por Sofia.
 Archivos:

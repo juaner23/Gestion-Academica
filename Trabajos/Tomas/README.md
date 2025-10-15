@@ -1,4 +1,4 @@
-# Trabajos de Pablo
+# Trabajos de Tomas
 
 Aquí deben ir los scripts resueltos por Pablo.
 Archivos:
