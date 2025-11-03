@@ -1,235 +1,74 @@
 USE GestionAcademicaNueva;
 GO
-
--- Generar intereses por mora para cuotas vencidas
-CREATE OR ALTER PROCEDURE creacion.sp_GenerarInteresesPorMora
+DROP PROCEDURE IF EXISTS creacion.sp_GenerarInteresesMora;
+DROP PROCEDURE IF EXISTS creacion.sp_EmitirFacturaAgrupada;
+DROP PROCEDURE IF EXISTS creacion.sp_ReinscribirEstudiante;
+GO
+-- Generar intereses por mora para cuotas vencidas y actualizar cuenta corriente.
+CREATE PROCEDURE creacion.sp_GenerarInteresesMora
 AS
 BEGIN
-    SET NOCOUNT ON;
-    
-    DECLARE @id_estudiante INT;
-    DECLARE @id_factura INT;
-    DECLARE @fecha_vencimiento DATE;
-    DECLARE @dias_vencido INT;
-    DECLARE @monto_factura DECIMAL(10,2);
-    DECLARE @porcentaje_interes DECIMAL(5,2);
-    DECLARE @monto_interes DECIMAL(10,2);
-    DECLARE @anio_carrera INT;
-    DECLARE @descripcion NVARCHAR(200);
-    
     BEGIN TRANSACTION;
-    
     BEGIN TRY
-        DECLARE facturas_cursor CURSOR FOR
-        SELECT f.id_factura, f.id_estudiante, f.total, f.fecha
-        FROM creacion.factura f
-        WHERE DATEDIFF(DAY, f.fecha, GETDATE()) > 30
-        AND f.total > 0;
-        
-        OPEN facturas_cursor;
-        FETCH NEXT FROM facturas_cursor INTO @id_factura, @id_estudiante, @monto_factura, @fecha_vencimiento;
-        
-        WHILE @@FETCH_STATUS = 0
-        BEGIN
-            SET @dias_vencido = DATEDIFF(DAY, @fecha_vencimiento, GETDATE());
-            
-            IF @dias_vencido > 30
-            BEGIN
-                SELECT TOP 1 @anio_carrera = c.anio
-                FROM creacion.inscripcion i
-                INNER JOIN creacion.materia m ON i.id_materia = m.id_materia
-                INNER JOIN creacion.curso c ON m.id_curso = c.id_curso
-                WHERE i.id_estudiante = @id_estudiante
-                ORDER BY c.anio DESC;
-                
-                SET @porcentaje_interes = ISNULL(@anio_carrera * 2.0, 5.0);
-                SET @monto_interes = (@monto_factura * @porcentaje_interes / 100.0) * (@dias_vencido / 30.0);
-                SET @descripcion = 'Interés por mora - ' + CAST(@dias_vencido AS NVARCHAR) + ' días vencidos';
-                
-                INSERT INTO creacion.CuentaCorriente (id_estudiante, fecha, descripcion, monto)
-                VALUES (@id_estudiante, GETDATE(), @descripcion, @monto_interes);
-                
-                UPDATE creacion.factura
-                SET total = total + @monto_interes
-                WHERE id_factura = @id_factura;
-            END
-            
-            FETCH NEXT FROM facturas_cursor INTO @id_factura, @id_estudiante, @monto_factura, @fecha_vencimiento;
-        END
-        
-        CLOSE facturas_cursor;
-        DEALLOCATE facturas_cursor;
-        
-        COMMIT TRANSACTION;
-        PRINT 'Intereses por mora generados correctamente.';
-        
+        DECLARE @porcentaje DECIMAL(5,2) = (SELECT TOP 1 porcentaje_interes FROM creacion.interes_por_mora);
+        UPDATE creacion.cuota
+        SET monto = monto * (1 + @porcentaje / 100)
+        WHERE fecha_vencimiento < GETDATE() AND estado_pago = 'Pendiente';
+        INSERT INTO creacion.CuentaCorriente (id_estudiante, fecha, descripcion, monto, concepto, estado)
+        SELECT id_estudiante, GETDATE(), 'Interés por mora', -(monto * @porcentaje / 100), 'Interés', 'Pendiente'
+        FROM creacion.cuota
+        WHERE fecha_vencimiento < GETDATE() AND estado_pago = 'Pendiente';
+        COMMIT;
     END TRY
     BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-        
-        IF CURSOR_STATUS('global', 'facturas_cursor') >= 0
-        BEGIN
-            CLOSE facturas_cursor;
-            DEALLOCATE facturas_cursor;
-        END
-        
-        DECLARE @ErrorMsg NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT 'Error al generar intereses por mora: ' + @ErrorMsg;
+        ROLLBACK;
         THROW;
     END CATCH
 END;
 GO
 
--- Emitir factura agrupando cuotas impagas del mes
-CREATE OR ALTER PROCEDURE creacion.sp_EmitirFacturaCuotasImpagas
+-- Emitir factura agrupando todas las cuotas impagas del mes.
+CREATE PROCEDURE creacion.sp_EmitirFacturaAgrupada
     @id_estudiante INT,
-    @mes INT = NULL,
-    @anio INT = NULL
+    @mes INT,
+    @anio INT
 AS
 BEGIN
-    SET NOCOUNT ON;
-    
-    DECLARE @monto_total DECIMAL(10,2) = 0;
-    DECLARE @id_factura INT;
-    DECLARE @descripcion NVARCHAR(200);
-    
-    IF @mes IS NULL
-        SET @mes = MONTH(GETDATE());
-    
-    IF @anio IS NULL
-        SET @anio = YEAR(GETDATE());
-    
     BEGIN TRANSACTION;
-    
     BEGIN TRY
-        IF NOT EXISTS (SELECT 1 FROM creacion.estudiante WHERE id_estudiante = @id_estudiante)
-        BEGIN
-            ROLLBACK TRANSACTION;
-            THROW 50020, 'Error: El estudiante no existe.', 1;
-        END
         
-        SELECT @monto_total = ISNULL(SUM(total), 0)
-        FROM creacion.factura
-        WHERE id_estudiante = @id_estudiante
-        AND MONTH(fecha) = @mes
-        AND YEAR(fecha) = @anio
-        AND total > 0;
+        DECLARE @monto_total DECIMAL(10,2) = (SELECT SUM(monto) FROM creacion.cuota WHERE id_estudiante = @id_estudiante AND mes = @mes AND estado_pago = 'Pendiente');
+        INSERT INTO creacion.factura (id_estudiante, mes, anio, fecha_emision, fecha_vencimiento, monto_total, estado_pago)
+        VALUES (@id_estudiante, @mes, @anio, GETDATE(), DATEADD(DAY, 30, GETDATE()), @monto_total, 'Pendiente');
+        DECLARE @id_factura INT = SCOPE_IDENTITY();
         
-        IF @monto_total > 0
-        BEGIN
-            SET @descripcion = 'Factura cuotas impagas - Mes ' + CAST(@mes AS NVARCHAR) + '/' + CAST(@anio AS NVARCHAR);
-            
-            INSERT INTO creacion.factura (id_estudiante, fecha, total)
-            VALUES (@id_estudiante, GETDATE(), @monto_total);
-            
-            SET @id_factura = SCOPE_IDENTITY();
-            
-            INSERT INTO creacion.CuentaCorriente (id_estudiante, fecha, descripcion, monto)
-            VALUES (@id_estudiante, GETDATE(), @descripcion, @monto_total);
-            
-            COMMIT TRANSACTION;
-            PRINT 'Factura emitida correctamente. Monto total: ' + CAST(@monto_total AS NVARCHAR);
-        END
-        ELSE
-        BEGIN
-            COMMIT TRANSACTION;
-            PRINT 'No hay cuotas impagas para el período especificado.';
-        END
-        
+        UPDATE creacion.cuota SET id_factura = @id_factura WHERE id_estudiante = @id_estudiante AND mes = @mes AND estado_pago = 'Pendiente';
+        COMMIT;
     END TRY
     BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-        
-        DECLARE @ErrorMsg NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT 'Error al emitir factura: ' + @ErrorMsg;
+        ROLLBACK;
         THROW;
     END CATCH
 END;
 GO
 
--- Reinscribir estudiante dado de baja y actualizar estado
-CREATE OR ALTER PROCEDURE creacion.sp_ReinscribirEstudiante
-    @id_estudiante INT,
-    @id_materia INT
+-- Reinscribir a un estudiante dado de baja y actualizar su estado
+CREATE PROCEDURE creacion.sp_ReinscribirEstudiante
+    @id_estudiante INT
 AS
 BEGIN
-    SET NOCOUNT ON;
-    
-    DECLARE @mensaje NVARCHAR(500);
-    DECLARE @id_curso INT;
-    DECLARE @sql NVARCHAR(500);
-    
     BEGIN TRANSACTION;
-    
     BEGIN TRY
-        IF NOT EXISTS (SELECT 1 FROM creacion.estudiante WHERE id_estudiante = @id_estudiante)
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SET @mensaje = 'Error: El estudiante no existe.';
-            THROW 50030, @mensaje, 1;
-        END
-        
-        IF NOT EXISTS (SELECT 1 FROM creacion.materia WHERE id_materia = @id_materia)
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SET @mensaje = 'Error: La materia no existe.';
-            THROW 50031, @mensaje, 1;
-        END
-        
-        IF EXISTS (SELECT 1 FROM sys.columns 
-                   WHERE object_id = OBJECT_ID('creacion.estudiante') 
-                   AND name = 'estado_baja')
-        BEGIN
-            SET @sql = 'UPDATE creacion.estudiante SET estado_baja = 0 WHERE id_estudiante = ' + CAST(@id_estudiante AS NVARCHAR(10));
-            EXEC sp_executesql @sql;
-        END
-        
-        SELECT @id_curso = id_curso FROM creacion.materia WHERE id_materia = @id_materia;
-        
-        IF EXISTS (SELECT 1 FROM creacion.curso 
-                   WHERE id_curso = @id_curso 
-                   AND cupo_ocupado >= cupo_maximo)
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SET @mensaje = 'Error: No hay cupo disponible en el curso.';
-            THROW 50032, @mensaje, 1;
-        END
-        
-        IF EXISTS (SELECT 1 FROM creacion.inscripcion 
-                   WHERE id_estudiante = @id_estudiante 
-                   AND id_materia = @id_materia)
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SET @mensaje = 'Error: El estudiante ya está inscripto en esta materia.';
-            THROW 50033, @mensaje, 1;
-        END
-        
-        INSERT INTO creacion.inscripcion (id_estudiante, id_materia, fecha_inscripcion)
-        VALUES (@id_estudiante, @id_materia, GETDATE());
-        
-        UPDATE creacion.curso
-        SET cupo_ocupado = cupo_ocupado + 1
-        WHERE id_curso = @id_curso;
-        
-        COMMIT TRANSACTION;
-        
-        SET @mensaje = 'Estudiante reinscrito exitosamente.';
-        PRINT @mensaje;
-        
+        IF NOT EXISTS (SELECT 1 FROM creacion.estudiante WHERE id_estudiante = @id_estudiante AND estado_baja = 1)
+            RAISERROR('El estudiante no está dado de baja.', 16, 1);
+        UPDATE creacion.estudiante SET estado_baja = 0 WHERE id_estudiante = @id_estudiante;
+        INSERT INTO creacion.matriculacion (id_estudiante, anio, fecha_pago, monto, estado_pago)
+        VALUES (@id_estudiante, YEAR(GETDATE()), GETDATE(), 0, 'Pagada');
+        COMMIT;
     END TRY
     BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-        
-        DECLARE @ErrorMsg NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT 'Error: ' + @ErrorMsg;
+        ROLLBACK;
         THROW;
     END CATCH
 END;
 GO
-
-PRINT 'Transacciones desde procedimientos almacenados creadas correctamente.';
-GO
-
