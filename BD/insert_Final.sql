@@ -1,9 +1,6 @@
 ﻿USE GestionAcademicaNueva;
 GO
 
-
-
-
 MERGE INTO creacion.estudiante AS target
 USING (VALUES 
     ('Juan', 'Pérez', '40123456', '2000-05-10', 'Av. Siempre Viva 123', '1112345678', 'juan.perez@email.com', 2020),
@@ -18,7 +15,6 @@ WHEN NOT MATCHED THEN
     VALUES (source.nombre, source.apellido, source.dni, source.fecha_nacimiento, source.direccion, source.telefono, source.email, source.anio_ingreso);
 GO
 
-
 INSERT INTO creacion.profesor (nombre, apellido, especialidad)
 VALUES 
 ('Ana', 'Torres', 'Informática'),
@@ -28,13 +24,11 @@ VALUES
 ('Elena', 'Gómez', 'Historia');
 GO
 
-
 INSERT INTO creacion.cuatrimestre (nombre, fecha_inicio, fecha_fin)
 VALUES 
 ('Cuatrimestre 1 - 2023', '2023-03-01', '2023-06-30'),
 ('Cuatrimestre 2 - 2023', '2023-08-01', '2023-11-30');
 GO
-
 
 MERGE INTO creacion.interes_por_mora AS target
 USING (VALUES 
@@ -50,7 +44,6 @@ WHEN NOT MATCHED THEN
     VALUES (source.anio_carrera, source.porcentaje_interes);
 GO
 
-
 INSERT INTO creacion.curso (nombre, anio, cupo_maximo, descripcion, id_profesor, id_materia)
 VALUES
 ('Algoritmos Avanzados', 1, 30, 'Curso avanzado de algoritmos', 1, NULL),
@@ -59,7 +52,6 @@ VALUES
 ('Química Básica', 1, 20, 'Química introductoria', 4, NULL),
 ('Historia Contemporánea', 1, 30, 'Historia del siglo XX', 5, NULL);
 GO
-
 
 INSERT INTO creacion.materia (nombre, id_curso, creditos, costo_curso_mensual)
 VALUES
@@ -70,14 +62,12 @@ VALUES
 ('Historia Moderna', 5, 3, 900.00);
 GO
 
-
 UPDATE creacion.curso SET id_materia = 1 WHERE id_curso = 1;
 UPDATE creacion.curso SET id_materia = 2 WHERE id_curso = 2;
 UPDATE creacion.curso SET id_materia = 3 WHERE id_curso = 3;
 UPDATE creacion.curso SET id_materia = 4 WHERE id_curso = 4;
 UPDATE creacion.curso SET id_materia = 5 WHERE id_curso = 5;
 GO
-
 
 INSERT INTO creacion.inscripcion (id_estudiante, id_materia, nota_final, id_curso, nota_teorica_1, nota_teorica_2, nota_practica, nota_teorica_recuperatorio)
 VALUES
@@ -93,7 +83,6 @@ VALUES
 (5, 1, 7.75, 1, 7.5, 7.5, 8.0, NULL);
 GO
 
-
 INSERT INTO creacion.CuentaCorriente (id_estudiante, descripcion, monto, concepto, estado)
 VALUES
 (1, 'Pago cuota 1', 5000, 'Cuota mensual', 'Pagado'),
@@ -102,7 +91,6 @@ VALUES
 (4, 'Pago cuota 1', 4800, 'Cuota mensual', 'Pagado'),
 (5, 'Pago cuota 1', 4700, 'Cuota mensual', 'Pendiente');
 GO
-
 
 INSERT INTO creacion.factura (id_estudiante, total, mes, anio, fecha_emision, fecha_vencimiento, monto_total, estado_pago)
 VALUES
@@ -113,7 +101,6 @@ VALUES
 (5, 4700, 3, 2023, GETDATE(), DATEADD(DAY, 30, GETDATE()), 4700, 'Pendiente');
 GO
 
-
 INSERT INTO creacion.cuota (id_estudiante, id_cuatrimestre, id_factura, mes, monto, fecha_vencimiento, estado_pago)
 VALUES 
 (1, 1, 1, 3, 1000.00, '2023-03-31', 'Pagada'),
@@ -122,7 +109,6 @@ VALUES
 (4, 2, 4, 8, 960.00, '2023-08-31', 'Pagada'),
 (5, 2, 5, 8, 940.00, '2023-08-31', 'Pendiente');
 GO
-
 
 INSERT INTO creacion.matriculacion (id_estudiante, anio, fecha_pago, monto, estado_pago)
 VALUES 
